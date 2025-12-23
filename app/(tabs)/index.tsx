@@ -1,98 +1,350 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import questionsData from '../../questions.json';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function QuizScreen() {
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [score, setScore] = useState(0);
 
-export default function HomeScreen() {
+  const question = questionsData[currentQuestion];
+  const isMultipleChoice = Array.isArray(question.correctAnswer);
+
+  const handleAnswer = (index: number) => {
+    if (showExplanation) return;
+
+    if (isMultipleChoice) {
+      if (selectedAnswers.includes(index)) {
+        setSelectedAnswers(selectedAnswers.filter(i => i !== index));
+      } else {
+        setSelectedAnswers([...selectedAnswers, index]);
+      }
+    } else {
+      setSelectedAnswers([index]);
+      checkAnswer([index]);
+    }
+  };
+
+  const checkAnswer = (answers: number[]) => {
+    setShowExplanation(true);
+    
+    let isCorrect = false;
+    if (isMultipleChoice) {
+      const sortedSelected = [...answers].sort();
+      const sortedCorrect = [...(question.correctAnswer as number[])].sort();
+      isCorrect = JSON.stringify(sortedSelected) === JSON.stringify(sortedCorrect);
+    } else {
+      isCorrect = answers[0] === question.correctAnswer;
+    }
+
+    if (isCorrect) {
+      setScore(score + 1);
+    }
+  };
+
+  const handleSubmitMultiple = () => {
+    if (selectedAnswers.length === 0) return;
+    checkAnswer(selectedAnswers);
+  };
+
+  const nextQuestion = () => {
+    if (currentQuestion < questionsData.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+      setSelectedAnswers([]);
+      setShowExplanation(false);
+    }
+  };
+
+  const resetQuiz = () => {
+    setCurrentQuestion(0);
+    setSelectedAnswers([]);
+    setShowExplanation(false);
+    setScore(0);
+  };
+
+  const getOptionStyle = (index: number) => {
+    if (!showExplanation) {
+      return selectedAnswers.includes(index) ? styles.optionSelected : styles.option;
+    }
+
+    const correctAnswers = isMultipleChoice ? question.correctAnswer as number[] : [question.correctAnswer as number];
+    
+    if (correctAnswers.includes(index)) {
+      return styles.optionCorrect;
+    }
+    
+    if (selectedAnswers.includes(index) && !correctAnswers.includes(index)) {
+      return styles.optionWrong;
+    }
+    
+    return styles.option;
+  };
+
+  const isCorrectAnswer = () => {
+    if (isMultipleChoice) {
+      const sortedSelected = [...selectedAnswers].sort();
+      const sortedCorrect = [...(question.correctAnswer as number[])].sort();
+      return JSON.stringify(sortedSelected) === JSON.stringify(sortedCorrect);
+    }
+    return selectedAnswers[0] === question.correctAnswer;
+  };
+
+  if (currentQuestion >= questionsData.length) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.resultContainer}>
+          <Text style={styles.resultTitle}>Тест завершен!</Text>
+          <Text style={styles.resultScore}>
+            Ваш результат: {score} из {questionsData.length}
+          </Text>
+          <TouchableOpacity style={styles.resetButton} onPress={resetQuiz}>
+            <Text style={styles.resetButtonText}>Начать заново</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.header}>
+          <Text style={styles.questionNumber}>
+            Вопрос {currentQuestion + 1} из {questionsData.length}
+          </Text>
+          <Text style={styles.scoreText}>Правильных: {score}</Text>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <Text style={styles.question}>{question.question}</Text>
+
+        {isMultipleChoice && !showExplanation && (
+          <Text style={styles.multipleHint}>
+            (Выберите несколько вариантов)
+          </Text>
+        )}
+
+        <View style={styles.optionsContainer}>
+          {question.options.map((option, index) => (
+            <TouchableOpacity
+              key={index}
+              style={getOptionStyle(index)}
+              onPress={() => handleAnswer(index)}
+              disabled={showExplanation}
+            >
+              <Text style={styles.optionText}>{option}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {isMultipleChoice && !showExplanation && selectedAnswers.length > 0 && (
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={handleSubmitMultiple}
+          >
+            <Text style={styles.submitButtonText}>Проверить ответ</Text>
+          </TouchableOpacity>
+        )}
+
+        {showExplanation && (
+          <View style={styles.explanationContainer}>
+            <Text style={[
+              styles.resultText,
+              isCorrectAnswer() ? styles.correctText : styles.wrongText
+            ]}>
+              {isCorrectAnswer() ? '✓ Правильно!' : '✗ Неправильно'}
+            </Text>
+            <Text style={styles.explanationTitle}>Объяснение:</Text>
+            <Text style={styles.explanationText}>{question.explanation}</Text>
+            
+            {currentQuestion < questionsData.length - 1 ? (
+              <TouchableOpacity style={styles.nextButton} onPress={nextQuestion}>
+                <Text style={styles.nextButtonText}>Следующий вопрос →</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.nextButton} onPress={resetQuiz}>
+                <Text style={styles.nextButtonText}>Завершить тест</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    paddingTop: StatusBar.currentHeight || 0,
+  },
+  scrollView: {
+    flex: 1,
+    padding: 20,
+  },
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  questionNumber: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  scoreText: {
+    fontSize: 16,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  question: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    lineHeight: 28,
+  },
+  multipleHint: {
+    fontSize: 14,
+    color: '#FF9800',
+    fontStyle: 'italic',
+    marginBottom: 15,
+  },
+  optionsContainer: {
+    marginTop: 20,
+  },
+  option: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  optionSelected: {
+    backgroundColor: '#E3F2FD',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#2196F3',
+  },
+  optionCorrect: {
+    backgroundColor: '#E8F5E9',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  optionWrong: {
+    backgroundColor: '#FFEBEE',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#F44336',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#333',
+    lineHeight: 22,
+  },
+  submitButton: {
+    backgroundColor: '#2196F3',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  explanationContainer: {
+    marginTop: 30,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  resultText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  correctText: {
+    color: '#4CAF50',
+  },
+  wrongText: {
+    color: '#F44336',
+  },
+  explanationTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  explanationText: {
+    fontSize: 16,
+    color: '#555',
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  nextButton: {
+    backgroundColor: '#4CAF50',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  resultContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  resultTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+  },
+  resultScore: {
+    fontSize: 24,
+    color: '#4CAF50',
+    marginBottom: 40,
+  },
+  resetButton: {
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
